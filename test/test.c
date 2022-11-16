@@ -13,6 +13,7 @@ CHEAT_DECLARE(
 	#define RCCONF_PATH     TMP_PATH "/test_rc.conf"
 	#define RCCONF_OUT_PATH TMP_PATH "/test_rc_out.conf"
 	#define INCORRECT_PATH  TMP_PATH "/test_rc_incorrect.conf"
+    #define RCCONF_HEADER  "*** HEADER ***"
 )
 
 CHEAT_TEST(rcconf,
@@ -21,7 +22,7 @@ CHEAT_TEST(rcconf,
 	int res;
 	FILE *f;
 	char buf[64];
-	const char *out = "key1=\"val1\"\nkey2=\"val2\"\nnew=\"newval\"\n";
+	const char *out = RCCONF_HEADER "\nkey1=\"val1\"\nkey2=\"val2\"\nnew2=\"newval2\"\n";
 
 	(void)(cheat_check); // suppress compiler "unused" error
 
@@ -108,16 +109,23 @@ CHEAT_TEST(rcconf,
 	res = rcconf_set_field(&cfg, "new", "newval");
 	cheat_assert_int(res, 0);
 
-	res = rcconf_save(NULL, RCCONF_OUT_PATH);
+	res = rcconf_save(NULL, RCCONF_OUT_PATH, RCCONF_HEADER);
 	cheat_assert_int(res, -EINVAL);
-	res = rcconf_save(&cfg, NULL);
+	res = rcconf_save(&cfg, NULL, RCCONF_HEADER);
 	cheat_assert_int(res, -EINVAL);
-	res = rcconf_save(&cfg, TMP_PATH);
+	res = rcconf_save(&cfg, TMP_PATH, RCCONF_HEADER);
 	cheat_assert_int(res, -EISDIR);
-	res = rcconf_save(&cfg, RCCONF_OUT_PATH);
+	res = rcconf_save(&cfg, RCCONF_OUT_PATH, RCCONF_HEADER);
 	cheat_assert_int(res, 0);
 
 	rcconf_free_field(NULL);
+
+    res = rcconf_save_fields(NULL, NULL, NULL);
+    cheat_assert_int(res, -EINVAL);
+    res = rcconf_save_fields(INCORRECT_PATH, NULL, NULL);
+    cheat_assert_int(res, -ENOENT);
+
+    rcconf_save_fields(RCCONF_OUT_PATH, RCCONF_HEADER, "new", NULL, "new2", "newval2", NULL);
 
 	f = fopen(RCCONF_OUT_PATH, "r");
 	fread(buf, sizeof(buf), 1, f);

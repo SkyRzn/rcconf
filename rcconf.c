@@ -10,6 +10,7 @@ under certain conditions; see the LICENSE file for details.
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <errno.h>
 #include <sys/types.h>
 
@@ -18,6 +19,57 @@ static struct rcconf_field *parse_line(char *line);
 static void strip(char *str);
 static bool is_space(char c);
 
+
+int rcconf_save_fields(const char *path, const char *header, ...)
+{
+    struct rcconf cfg;
+    va_list args;
+    const char *key, *val;
+    int res;
+
+    if ((!path)) {
+        return -EINVAL;
+    }
+
+    rcconf_init(&cfg);
+
+    res = rcconf_load(&cfg, path);
+    if (res != 0) {
+        return res;
+    }
+
+    va_start(args, header);
+
+    do {
+        key = va_arg(args, const char *);
+        if (key == NULL) {
+            break;
+        }
+
+        val = va_arg(args, const char *);
+        if (val == NULL) {
+            res = rcconf_del_field(&cfg, key);
+            if (res != 0 && res != -ENOENT) {
+                goto err;
+            }
+        } else {
+            res = rcconf_set_field(&cfg, key, val);
+            if (res != 0) {
+                goto err;
+            }
+        }
+
+    } while (key != NULL);
+
+    va_end(args);
+
+    res = rcconf_save(&cfg, path, header);
+
+err:
+    rcconf_free(&cfg);
+
+    return res;
+}
 
 void rcconf_init(struct rcconf *cfg)
 {
@@ -74,7 +126,7 @@ int rcconf_load(struct rcconf *cfg, const char *path)
     return 0;
 }
 
-int rcconf_save(struct rcconf *cfg, const char *path)
+int rcconf_save(struct rcconf *cfg, const char *path, const char *header)
 {
     FILE *fp;
     struct rcconf_field *field;
@@ -86,6 +138,10 @@ int rcconf_save(struct rcconf *cfg, const char *path)
     fp = fopen(path, "w+");
     if (!fp)
         return -errno;
+
+    if (header) {
+        fprintf(fp, "%s\n", header);
+    }
 
     RC_CONF_FOREACH_FIELD(cfg, field) {
         fprintf(fp, "%s=\"%s\"\n", field->key, field->val);
