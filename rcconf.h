@@ -9,18 +9,18 @@ under certain conditions; see the LICENSE file for details.
 #define __RCCONF_H__
 
 struct rcconf_field {
-    char *key;
-    char *val;
-    struct rcconf_field *next;
-    struct rcconf_field *prev;
+	char *key;
+	char *val;
+	struct rcconf_field *next;
+	struct rcconf_field *prev;
 };
 
 struct rcconf {
-    struct rcconf_field fields;
+	struct rcconf_field fields;
 };
 
 #define RC_CONF_FOREACH_FIELD(cfg, field) \
-    for (field = (cfg)->fields.next; (field) != &(cfg)->fields; field = (field)->next)
+	for (field = (cfg)->fields.next; (field) != &(cfg)->fields; field = (field)->next)
 
 /* You can call this function with any number of key/val. You must
  * terminate argumnets with NULL. There should be an even number of

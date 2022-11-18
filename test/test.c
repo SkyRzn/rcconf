@@ -9,11 +9,11 @@
 
 
 CHEAT_DECLARE(
-	#define TMP_PATH                 "build-test/tmp"
+	#define TMP_PATH        "build-test/tmp"
 	#define RCCONF_PATH     TMP_PATH "/test_rc.conf"
 	#define RCCONF_OUT_PATH TMP_PATH "/test_rc_out.conf"
 	#define INCORRECT_PATH  TMP_PATH "/test_rc_incorrect.conf"
-    #define RCCONF_HEADER  "*** HEADER ***"
+	#define RCCONF_HEADER   "*** HEADER ***"
 )
 
 CHEAT_TEST(rcconf,
@@ -120,12 +120,12 @@ CHEAT_TEST(rcconf,
 
 	rcconf_free_field(NULL);
 
-    res = rcconf_save_fields(NULL, NULL, NULL);
-    cheat_assert_int(res, -EINVAL);
-    res = rcconf_save_fields(INCORRECT_PATH, NULL, NULL);
-    cheat_assert_int(res, -ENOENT);
+	res = rcconf_save_fields(NULL, NULL, NULL);
+	cheat_assert_int(res, -EINVAL);
+	res = rcconf_save_fields(INCORRECT_PATH, NULL, NULL);
+	cheat_assert_int(res, -ENOENT);
 
-    rcconf_save_fields(RCCONF_OUT_PATH, RCCONF_HEADER, "new", NULL, "new2", "newval2", NULL);
+	rcconf_save_fields(RCCONF_OUT_PATH, RCCONF_HEADER, "new", NULL, "new2", "newval2", NULL);
 
 	f = fopen(RCCONF_OUT_PATH, "r");
 	fread(buf, sizeof(buf), 1, f);

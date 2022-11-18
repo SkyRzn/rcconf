@@ -13,10 +13,10 @@ add_definitions(-DVERSION_PATCH=${VERSION_INFO_PATCH_VERSION})
 add_definitions(-DPROJECT_NAME=${PROJECT_NAME})
 
 add_compile_options(
-    "-Wall"
-    "-Werror"
-    "$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb>"
-    "$<$<CONFIG:RELEASE>:-O3>"
+	"-Wall"
+	"-Werror"
+	"$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb>"
+	"$<$<CONFIG:RELEASE>:-O3>"
 )
 include_directories(".")
 
@@ -31,6 +31,3 @@ if (UNIT_TEST)
 	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 	add_subdirectory(test)
 endif()
-
-
-
