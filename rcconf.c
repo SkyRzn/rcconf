@@ -309,37 +309,19 @@ static struct rcconf_field *parse_line(char *line)
 
 static void strip(char *str)
 {
-    char *p, *p2;
-    int len;
+    char *beg, *end;
 
-    len = strlen(str);
+    beg = str;
+    end = beg + strlen(str);
 
-    // strip trailing spaces
-    for (p = str + len; p != str;) {
-        p--;
-        if (!is_space(*p)) {
-            break;
-        }
-        *p = '\0';
-    }
+    for (; beg != end && is_space(*beg); beg++);
+    for (; beg != end && is_space(*end); end--);
 
-    // strip leading spaces
-    for (p = str, p2 = NULL; *p; p++) {
-        if (!p2) {
-            if (is_space(*p)) {
-                continue;
-            }
-            p2 = str;
-        }
-        *p2 = *p;
-        p2++;
-    }
-    if (p2) {
-        *p2 = '\0';
-    }
+    memmove(str, beg, end - beg + 1);
+    str[end - beg + 1] = '\0';
 }
 
 static bool is_space(char c)
 {
-    return (c == ' ' || c == '\t' || c == '\n');
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\0');
 }
