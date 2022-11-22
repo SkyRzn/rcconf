@@ -33,7 +33,7 @@ struct rcconf {
  *                        "key1", "val1, "key2", "val2", "rm_key3", NULL, NULL);
  *                        |_______ add key/val _______|  |__rm key/val_|  |_teminator
  */
-extern int rcconf_save_fields(const char *key, const char *val, ...);
+extern int rcconf_save_fields(const char *path, const char *header, ...);
 
 extern void rcconf_init(struct rcconf *cfg);
 extern void rcconf_free(struct rcconf *cfg);
