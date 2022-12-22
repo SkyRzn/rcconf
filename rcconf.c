@@ -15,19 +15,19 @@ under certain conditions; see the LICENSE file for details.
 #include <sys/types.h>
 
 
-static struct rcconf_field *parse_line(char *line);
+static struct rcconf_item *parse_line(char *line);
 static void strip(char *str);
 static bool is_space(char c);
 
 
-int rcconf_save_fields(const char *path, const char *header, ...)
+int rcconf_save_items(const char *path, const char *header, ...)
 {
 	struct rcconf cfg;
 	va_list args;
 	const char *key, *val;
 	int res;
 
-	if ((!path)) {
+	if (!path) {
 		return -EINVAL;
 	}
 
@@ -48,12 +48,12 @@ int rcconf_save_fields(const char *path, const char *header, ...)
 
 		val = va_arg(args, const char *);
 		if (val == NULL) {
-			res = rcconf_del_field(&cfg, key);
+			res = rcconf_del_item(&cfg, key);
 			if (res != 0 && res != -ENOENT) {
 				goto err;
 			}
 		} else {
-			res = rcconf_set_field(&cfg, key, val);
+			res = rcconf_set_item(&cfg, key, val);
 			if (res != 0) {
 				goto err;
 			}
@@ -76,26 +76,25 @@ void rcconf_init(struct rcconf *cfg)
 	if (!cfg) {
 		return;
 	}
-	cfg->fields.next = &cfg->fields;
-	cfg->fields.prev = &cfg->fields;
+	rcconf_list_init(&cfg->list);
 }
 
 void rcconf_free(struct rcconf *cfg)
 {
-	struct rcconf_field *field, *next;
+	struct rcconf_list *list, *item, *next;
 
 	if (!cfg) {
 		return;
 	}
 
+	list = &cfg->list;
 	next = NULL;
-	for (field = cfg->fields.next; field != &cfg->fields; field = next) {
-		next = field->next;
-		rcconf_free_field(field);
+	for (item = list->next; item != list; item = next) {
+		next = item->next;
+		rcconf_free_item(container_of(item, struct rcconf_item, list));
 	}
 
-	cfg->fields.prev = &cfg->fields;
-	cfg->fields.next = &cfg->fields;
+	rcconf_list_init(list);
 }
 
 int rcconf_load(struct rcconf *cfg, const char *path)
@@ -104,7 +103,7 @@ int rcconf_load(struct rcconf *cfg, const char *path)
 	char *line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	struct rcconf_field *field;
+	struct rcconf_item *item;
 
 	if ((!cfg) || (!path)) {
 		return -EINVAL;
@@ -117,8 +116,8 @@ int rcconf_load(struct rcconf *cfg, const char *path)
 		return -errno;
 
 	while ((read = getline(&line, &len, fp)) != -1) {
-		field = parse_line(line);
-		rcconf_add_field(cfg, field);
+		item = parse_line(line);
+		rcconf_add_item(cfg, item);
 	}
 	free(line);
 	fclose(fp);
@@ -128,8 +127,9 @@ int rcconf_load(struct rcconf *cfg, const char *path)
 
 int rcconf_save(struct rcconf *cfg, const char *path, const char *header)
 {
+	struct rcconf_list *list_item;
+	struct rcconf_item *item;
 	FILE *fp;
-	struct rcconf_field *field;
 
 	if ((!cfg) || (!path)) {
 		return -EINVAL;
@@ -143,8 +143,9 @@ int rcconf_save(struct rcconf *cfg, const char *path, const char *header)
 		fprintf(fp, "%s\n", header);
 	}
 
-	RC_CONF_FOREACH_FIELD(cfg, field) {
-		fprintf(fp, "%s=\"%s\"\n", field->key, field->val);
+	rcconf_list_foreach(&cfg->list, list_item) {
+		item = container_of(list_item, struct rcconf_item, list);
+		fprintf(fp, "%s=\"%s\"\n", item->key, item->val);
 	}
 	fclose(fp);
 
@@ -152,129 +153,127 @@ int rcconf_save(struct rcconf *cfg, const char *path, const char *header)
 }
 
 
-struct rcconf_field *rcconf_get_field(struct rcconf *cfg, const char *key)
+struct rcconf_item *rcconf_get_item(struct rcconf *cfg, const char *key)
 {
-	struct rcconf_field *field;
+	struct rcconf_list *list_item;
+	struct rcconf_item *item;
 
 	if ((!cfg) || (!key)) {
 		return NULL;
 	}
 
-	RC_CONF_FOREACH_FIELD(cfg, field) {
-		if (strcmp(field->key, key) == 0) {
-			return field;
+	rcconf_list_foreach(&cfg->list, list_item) {
+		item = container_of(list_item, struct rcconf_item, list);
+		if (strcmp(item->key, key) == 0) {
+			return item;
 		}
 	}
 
 	return NULL;
 }
 
-int rcconf_set_field(struct rcconf *cfg, const char *key, const char *val)
+int rcconf_set_item(struct rcconf *cfg, const char *key, const char *val)
 {
-	struct rcconf_field *field;
+	struct rcconf_item *item;
 	char *tmp;
 
 	if ((!cfg) || (!key) || (!val)) {
 		return -EINVAL;
 	}
 
-	field = rcconf_get_field(cfg, key);
-	if (field) {
+	item = rcconf_get_item(cfg, key);
+	if (item) {
 		tmp = strdup(val);
 		if (!tmp) {
 			return -ENOMEM;
 		}
 
-		free(field->val);
-		field->val = tmp;
+		free(item->val);
+		item->val = tmp;
 		return 0;
 	}
 
-	field = rcconf_make_field(key, val);
-	if (!field) {
+	item = rcconf_make_item(key, val);
+	if (!item) {
 		return -errno;
 	}
 
-	return rcconf_add_field(cfg, field);
+	return rcconf_add_item(cfg, item);
 }
 
-int rcconf_del_field(struct rcconf *cfg, const char *key)
+int rcconf_del_item(struct rcconf *cfg, const char *key)
 {
-	struct rcconf_field *field;
+	struct rcconf_item *item;
 
 	if ((!cfg) || (!key)) {
 		return -EINVAL;
 	}
 
-	field = rcconf_get_field(cfg, key);
-	if (!field) {
+	item = rcconf_get_item(cfg, key);
+	if (!item) {
 		return -ENOENT;
 	}
 
-	field->next->prev = field->prev;
-	field->prev->next = field->next;
+	rcconf_list_del(&item->list);
+
 	return 0;
 }
 
-int rcconf_add_field(struct rcconf *cfg, struct rcconf_field *field)
+int rcconf_add_item(struct rcconf *cfg, struct rcconf_item *item)
 {
-	struct rcconf_field *check;
+	struct rcconf_item *check;
 
-	if ((!cfg) || (!field)) {
+	if ((!cfg) || (!item)) {
 		return -EINVAL;
 	}
 
-	check = rcconf_get_field(cfg, field->key);
+	check = rcconf_get_item(cfg, item->key);
 	if (check) {
 		return -EEXIST;
 	}
 
-	field->prev = cfg->fields.prev;
-	field->next = &cfg->fields;
-	cfg->fields.prev->next = field;
-	cfg->fields.prev = field;
-
+	rcconf_list_append(&cfg->list, &item->list);
 	return 0;
 }
 
-struct rcconf_field *rcconf_make_field(const char *key, const char *val)
+struct rcconf_item *rcconf_make_item(const char *key, const char *val)
 {
-	struct rcconf_field *field;
+	struct rcconf_item *item;
 
 	if ((!key) || (!val)) {
 		return NULL;
 	}
 
-	field = malloc(sizeof(*field));
-	if (!field) {
-		errno = -ENOMEM;
+	item = malloc(sizeof(*item));
+	if (!item) {
+		errno = ENOMEM;
 		return NULL;
 	}
 
-	field->next = NULL;
-	field->key = strdup(key);
-	field->val = strdup(val);
+	rcconf_list_init(&item->list);
+	item->key = strdup(key);
+	item->val = strdup(val);
 
-	if ((!field->key) || (!field->val)) {
-		rcconf_free_field(field);
-		errno = -ENOMEM;
+	if ((!item->key) || (!item->val)) {
+		rcconf_free_item(item);
+		errno = ENOMEM;
 		return NULL;
 	}
 
-	return field;
+	return item;
 }
 
-void rcconf_free_field(struct rcconf_field *field)
+void rcconf_free_item(struct rcconf_item *item)
 {
-	if (!field) {
+	if (!item) {
 		return;
 	}
-	free(field->key);
-	free(field->val);
-	free(field);
+	free(item->key);
+	free(item->val);
+	free(item);
 }
 
-static struct rcconf_field *parse_line(char *line)
+static struct rcconf_item *parse_line(char *line)
 {
 	char *p, *key, *val, *end;
 
@@ -304,7 +303,7 @@ static struct rcconf_field *parse_line(char *line)
 	val++;
 	*end = '\0';
 
-	return rcconf_make_field(key, val);
+	return rcconf_make_item(key, val);
 }
 
 static void strip(char *str)
