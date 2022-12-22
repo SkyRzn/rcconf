@@ -172,6 +172,8 @@ int rcconf_sublist_load(struct rcconf_sublist *sublist, struct rcconf *cfg)
 		if (len > 0) {
 			res = load_item(sublist, cfg, key);
 			if (res != 0) {
+				rcconf_sublist_free(sublist);
+				free(keys);
 				return res;
 			}
 		}
