@@ -257,4 +257,6 @@ CHEAT_TEST(rcconf_sublist,
 	cheat_assert_string(rcconf_item->val, "val0");
 	rcconf_item = rcconf_get_item(&cfg, "prefix_key2");
 	cheat_assert_string(rcconf_item->val, "val2");
+
+	rcconf_sublist_free(&sublist);
 )
