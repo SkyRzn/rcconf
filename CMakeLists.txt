@@ -20,7 +20,7 @@ add_compile_options(
 )
 include_directories(".")
 
-file(GLOB SOURCES "rcconf.c" "rcconf_list.c")
+file(GLOB SOURCES "rcconf.c" "rcconf_list.c" "rcconf_sublist.c")
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 option(UNIT_TEST "Build with unit test coverage" OFF)
